@@ -195,7 +195,7 @@ const Dashboard = () => {
           variant="h4"
           fontWeight={600}
         >
-          Dashboard
+          KoalaTech Production Dashboard
         </Typography>
 
         <Typography color="text.secondary">
