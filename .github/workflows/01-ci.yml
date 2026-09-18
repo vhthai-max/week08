@@ -13,11 +13,42 @@ on:
 jobs:
 
   # =========================================================
+  # Terraform Validate
+  # =========================================================
+  terraform-validate:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Format Check
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
+
+  # =========================================================
   # Backend Tests
   # =========================================================
   backend-test:
     name: Test ${{ matrix.service }}
     runs-on: ubuntu-latest
+
+    needs:
+      - terraform-validate
 
     strategy:
       fail-fast: false
@@ -162,3 +193,37 @@ jobs:
         run: |
           docker push \
             ${{ vars.ACR_LOGIN_SERVER }}/${{ matrix.image }}:${{ github.sha }}
+
+  # =========================================================
+  # Docker Scout Security Scan
+  # =========================================================
+  docker-scout:
+    name: Docker Scout Security Scan
+    runs-on: ubuntu-latest
+
+    needs:
+      - build-and-push
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Pull user-service image
+        run: |
+          docker pull \
+            ${{ vars.ACR_LOGIN_SERVER }}/koalatech-user-service:${{ github.sha }}
+
+      - name: Docker Scout CVE Scan
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: ${{ vars.ACR_LOGIN_SERVER }}/koalatech-user-service:${{ github.sha }}
+          only-severities: critical,high
+          exit-code: false

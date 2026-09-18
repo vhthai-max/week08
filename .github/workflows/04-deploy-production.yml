@@ -158,3 +158,54 @@ jobs:
           kubectl get pods -n production
           kubectl get services -n production
           kubectl get pvc -n production
+
+  validate-monitoring:
+    name: Validate Prometheus and Grafana
+    runs-on: ubuntu-latest
+
+    needs:
+      - deploy-production
+
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 --decode > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+          kubectl cluster-info
+
+      - name: Check monitoring namespace
+        run: |
+          kubectl get namespace monitoring
+          kubectl get pods -n monitoring
+          kubectl get services -n monitoring
+
+      - name: Validate Prometheus
+        run: |
+          kubectl get statefulset prometheus-prometheus-kube-prometheus-prometheus \
+            -n monitoring
+          kubectl rollout status statefulset/prometheus-prometheus-kube-prometheus-prometheus \
+            -n monitoring \
+            --timeout=300s
+
+      - name: Validate Grafana
+        run: |
+          kubectl get deployment prometheus-grafana \
+            -n monitoring
+          kubectl rollout status deployment/prometheus-grafana \
+            -n monitoring \
+            --timeout=300s
+
+      - name: Show monitoring status
+        run: |
+          echo "Monitoring components:"
+          kubectl get pods -n monitoring
+          echo ""
+          echo "Monitoring services:"
+          kubectl get services -n monitoring
