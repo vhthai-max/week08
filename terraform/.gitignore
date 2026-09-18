@@ -1,0 +1,10 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+tfplan2
+student-tfplan
+week08.tfplan
+week08-new.tfplan
+terraform.tfvars
